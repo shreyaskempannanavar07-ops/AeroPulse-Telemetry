@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AeroPulse FMS | Airbus A350-900 Structural Diagnostics</title>
+  <style>
+    :root {
+      --bg: #080f1e;
+      --panel: #0f172a;
+      --card: #131f38;
+      --border: #1e293b;
+      --cyan: #00e5ff;
+      --green: #00e676;
+      --amber: #ffab00;
+      --red: #ff1744;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 18px; min-height: 100vh; }
+    header {
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+      background: var(--panel); border: 1px solid var(--border); border-left: 4px solid var(--cyan);
+      padding: 14px 22px; border-radius: 8px; margin-bottom: 18px;
+    }
+    .brand { font-size: 1.5rem; font-weight: 800; letter-spacing: 1.5px; }
+    .brand span { color: var(--muted); font-weight: 600; }
+    .status-pill {
+      padding: 6px 14px; border-radius: 6px; font-weight: 700; font-size: 0.85rem;
+      background: rgba(0, 230, 118, 0.12); color: var(--green); border: 1px solid var(--green);
+    }
+    .status-pill.locked {
+      background: rgba(0, 229, 255, 0.15); color: var(--cyan); border-color: var(--cyan);
+    }
+    .main-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 18px; }
+    @media (max-width: 920px) { .main-grid { grid-template-columns: 1fr; } }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 18px; }
+    .panel-title {
+      font-size: 0.9rem; font-weight: 700; color: var(--cyan); letter-spacing: 1px;
+      text-transform: uppercase; margin-bottom: 12px; display: flex; justify-content: space-between;
+    }
+    .angle-tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .angle-btn {
+      background: var(--card); color: var(--muted); border: 1px solid var(--border);
+      padding: 7px 14px; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 0.82rem;
+    }
+    .angle-btn.active { background: var(--cyan); color: #04101d; border-color: var(--cyan); }
+    .viewport {
+      background: #000000; border: 1px solid #1e293b; border-radius: 8px;
+      height: 300px; display: flex; align-items: center; justify-content: center;
+      position: relative; overflow: hidden; margin-bottom: 14px;
+    }
+    .viewport img { max-width: 95%; max-height: 95%; object-fit: contain; }
+    .scan-line {
+      position: absolute; top: 0; left: 0; width: 100%; height: 3px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      animation: scan 3s linear infinite;
+    }
+    @keyframes scan { 0% { top: 0%; } 100% { top: 100%; } }
+    .sensors-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+    .sensor-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 10px; text-align: center;
+    }
+    .sensor-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; }
+    .sensor-value { font-size: 1.2rem; font-weight: 800; color: var(--cyan); margin-top: 4px; }
+    .action-bar { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn {
+      padding: 10px 16px; border-radius: 6px; font-weight: 700; cursor: pointer;
+      border: 1px solid #334155; background: var(--card); color: var(--text); font-size: 0.85rem;
+    }
+    .btn:hover { border-color: var(--cyan); color: var(--cyan); }
+    .btn-sim { background: var(--cyan); color: #04101d; border: none; }
+    .btn-lock { background: rgba(0, 230, 118, 0.15); color: var(--green); border-color: var(--green); }
+    .zone-item { margin-bottom: 11px; }
+    .zone-top { display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 4px; }
+    .bar-track { background: #1e293b; height: 9px; border-radius: 5px; overflow: hidden; }
+    .bar-fill { height: 100%; transition: width 0.35s ease, background 0.35s ease; }
+    .telemetry-console {
+      background: #040811; border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px; height: 155px; overflow-y: auto; font-family: 'Consolas', monospace;
+      font-size: 0.8rem; color: #cbd5e1; margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="brand"><span>AERO</span>PULSE // AIRBUS A350-900 FMS</div>
+    <div style="color: var(--muted); font-size: 0.82rem;">Photonic FBG Structural Diagnostics & QKD-Secured Telemetry Terminal</div>
+  </div>
+  <div id="sysStatus" class="status-pill">● LIVE TELEMETRY ACTIVE</div>
+</header>
+
+<div class="main-grid">
+  <div class="panel">
+    <div class="panel-title">
+      <span>Multi-Angle Airframe Blueprint</span>
+      <span id="angleLabel" style="color:var(--muted);">VIEW: TOP PROFILE</span>
+    </div>
+
+    <div class="angle-tabs">
+      <button class="angle-btn active" onclick="setAngle('plane_top.png', 'TOP PROFILE', this)">Top View</button>
+      <button class="angle-btn" onclick="setAngle('plane_front.png', 'FRONT PROFILE', this)">Front View</button>
+      <button class="angle-btn" onclick="setAngle('plane_left.png', 'LEFT PROFILE', this)">Left Side</button>
+      <button class="angle-btn" onclick="setAngle('plane_right.png', 'RIGHT PROFILE', this)">Right Side</button>
+    </div>
+
+    <div class="viewport">
+      <div class="scan-line"></div>
+      <img id="planeImg" src="plane_top.png" alt="Airbus A350 Blueprint" />
+    </div>
+
+    <div class="sensors-row">
+      <div class="sensor-card">
+        <div class="sensor-label">Engine Core Temp</div>
+        <div id="tempVal" class="sensor-value">642 °C</div>
+      </div>
+      <div class="sensor-card">
+        <div class="sensor-label">Wing Vibration (FBG)</div>
+        <div id="vibVal" class="sensor-value">14.2 Hz</div>
+      </div>
+      <div class="sensor-card">
+        <div class="sensor-label">Structural G-Load</div>
+        <div id="gVal" class="sensor-value">1.04 G</div>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <button class="btn btn-sim" onclick="runStressSim()">▶ Replay Stress Simulation</button>
+      <button class="btn btn-lock" onclick="lockIntegrity()">🔒 Lock Data Integrity</button>
+      <button class="btn" onclick="resetFMS()">↺ Reset Systems</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title"><span>7-Zone Component Health Matrix</span></div>
+    <div id="healthList"></div>
+
+    <div class="panel-title" style="margin-top:16px;"><span>QKD Encrypted Telemetry Log</span></div>
+    <div id="consoleLog" class="telemetry-console"></div>
+  </div>
+</div>
+
+<script>
+  const defaultParts = [
+    { name: "Nose Cone & Radome", pct: 99 },
+    { name: "Fuselage Top Crown", pct: 98 },
+    { name: "Left Fuselage & Wing Root", pct: 97 },
+    { name: "Right Fuselage & Wing Root", pct: 98 },
+    { name: "Trailing Edge Flaps", pct: 96 },
+    { name: "Horizontal Elevators", pct: 99 },
+    { name: "Vertical Stabilizer", pct: 98 }
+  ];
+  let parts = JSON.parse(JSON.stringify(defaultParts));
+  let isLocked = false;
+
+  function logMsg(text) {
+    const el = document.getElementById("consoleLog");
+    const t = new Date().toLocaleTimeString();
+    el.innerHTML = `<div><span style="color:#38bdf8;">[${t}]</span> ${text}</div>` + el.innerHTML;
+  }
+
+  function setAngle(file, label, btn) {
+    document.getElementById("planeImg").src = file;
+    document.getElementById("angleLabel").textContent = "VIEW: " + label;
+    document.querySelectorAll(".angle-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    logMsg("Switched camera/FBG diagnostic view to " + label + ".");
+  }
+
+  function renderHealth() {
+    document.getElementById("healthList").innerHTML = parts.map(p => {
+      const col = p.pct > 85 ? "var(--green)" : p.pct > 70 ? "var(--amber)" : "var(--red)";
+      return `
+        <div class="zone-item">
+          <div class="zone-top"><span>${p.name}</span><span style="color:${col}; font-weight:700;">${p.pct}%</span></div>
+          <div class="bar-track"><div class="bar-fill" style="width:${p.pct}%; background:${col};"></div></div>
+        </div>`;
+    }).join("");
+  }
+
+  function runStressSim() {
+    if (isLocked) {
+      logMsg("WARNING: Telemetry timeline is LOCKED. Click Reset Systems to simulate again.");
+      return;
+    }
+    parts = parts.map(p => ({ ...p, pct: Math.max(62, p.pct - Math.floor(Math.random() * 15 + 5)) }));
+    document.getElementById("tempVal").textContent = Math.floor(780 + Math.random() * 95) + " °C";
+    document.getElementById("vibVal").textContent = (38 + Math.random() * 18).toFixed(1) + " Hz";
+    document.getElementById("gVal").textContent = (2.1 + Math.random() * 0.8).toFixed(2) + " G";
+    logMsg("STORM PHASE DETECTED: High aerodynamic strain logged across FBG wing channels.");
+    renderHealth();
+  }
+
+  function lockIntegrity() {
+    isLocked = true;
+    const pill = document.getElementById("sysStatus");
+    pill.textContent = "🔒 DATA INTEGRITY LOCKED";
+    pill.classList.add("locked");
+    logMsg("QKD KEY VERIFIED: Pre-landing diagnostic report locked & synced to ground MRO.");
+  }
+
+  function resetFMS() {
+    isLocked = false;
+    parts = JSON.parse(JSON.stringify(defaultParts));
+    const pill = document.getElementById("sysStatus");
+    pill.textContent = "● LIVE TELEMETRY ACTIVE";
+    pill.classList.remove("locked");
+    document.getElementById("tempVal").textContent = "642 °C";
+    document.getElementById("vibVal").textContent = "14.2 Hz";
+    document.getElementById("gVal").textContent = "1.04 G";
+    logMsg("SYSTEM RESET: All 7 Airbus A350 structural zones recalibrated.");
+    renderHealth();
+  }
+
+  renderHealth();
+  logMsg("FMS ONLINE: Airbus A350-900 FBG photonic array & QKD encryption initialized.");
+</script>
+</body>
+</html>
